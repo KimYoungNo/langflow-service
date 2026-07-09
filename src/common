@@ -1,0 +1,58 @@
+# stdout Helpers ───────────────────────────────────────────────────────────────
+RESET=$(  printf '\033[0m')
+BOLD=$(   printf '\033[1m')
+BLACK=$(  printf '\033[30m')
+RED=$(    printf '\033[31m')
+GREEN=$(  printf '\033[32m')
+YELLOW=$( printf '\033[33m')
+BLUE=$(   printf '\033[34m')
+MAGENTA=$(printf '\033[35m')
+CYAN=$(   printf '\033[36m')
+WHITE=$(  printf '\033[37m')
+
+INFO_HEADER="${BOLD}${CYAN}[i]"
+WARN_HEADER="${BOLD}${YELLOW}⚠"
+DONE_HEADER="${BOLD}${GREEN}✔"
+ERROR_HEADER="${BOLD}${RED}✖"
+
+function msg_info() { echo -e "${INFO_HEADER} $@ ${RESET}"; }
+function msg_warn() { echo -e "${WARN_HEADER} $@ ${RESET}"; }
+function msg_done() { echo -e "${DONE_HEADER} $@ ${RESET}"; }
+function msg_error(){ echo -e "${ERROR_HEADER} $@ ${RESET}"; }
+
+# Fallback Routine ───────────────────────────────────────────────────────────────
+errlog=$(mktemp)
+trap 'rm -f "$errlog"' EXIT
+
+#exec 3>&2
+#exec 2> >(tee -a "$errlog" >&1)
+
+function fallback() {
+  local rc=$1
+  local cmd=${BASH_COMMAND}
+  local file=${BASH_SOURCE[1]}
+  local lineno=${BASH_LINENO[0]}
+  {
+    msg_error "${file}: ${lineno}: \"${cmd}\" exited with ${rc}"
+#    echo -e   "└── traceback:"
+#    sed  's/^/    /' "${errlog}"
+#    echo -e   ""
+  }
+  exit "$rc"
+}
+set -Eeu
+set -Eeuo errexit
+set -Eeuo pipefail
+trap 'fallback $?' ERR
+
+# OS Detection ───────────────────────────────────────────────────────────────
+if [[ -f "/etc/debian_version" ]]; then
+  OS="DEBIAN"
+fi
+
+# System Path ───────────────────────────────────────────────────────────────
+if [[ ${OS} == "DEBIAN" ]]; then
+  SERVICE_DIR="/etc/systemd/system"
+  CONFIG_DIR="/usr/local/share"
+fi
+mkdir -p "${CONFIG_DIR}" >/dev/null 2>&1
